@@ -8,10 +8,18 @@
    <style>
      html, body { height: 100%; margin: 0; padding: 0; }
      #map { height: 100%; width: 100%; }
+     #controls { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; }
    </style>
-</head>
-<body>
-  <div id="map"></div>
+ </head>
+ <body>
+   <div id="controls">
+     <form id="filterForm">
+       <label>Start Date: <input type="date" id="startDate"></label>
+       <label>End Date: <input type="date" id="endDate"></label>
+       <button type="submit">Filter Flights</button>
+     </form>
+   </div>
+   <div id="map"></div>
    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
    <script>
@@ -20,60 +28,100 @@
        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
      }).addTo(map);
 
+     let markers = [];
+     let arcs = [];
+     let airports;
+     let uniqueFlights;
+
      Promise.all([
        fetch('airports.json').then(response => response.json()),
        fetch('epstein_flights.json').then(response => response.json())
-      ]).then(([airports, flights]) => {
-        const airportCoords = {};
-        for (const code in airports) {
-          const airport = airports[code];
-          airportCoords[code] = { lat: airport.lat, lon: airport.lon, name: airport.name };  // ICAO code
-          if (airport.iata) {
-            airportCoords[airport.iata] = { lat: airport.lat, lon: airport.lon, name: airport.name };
-          }
-        }
+     ]).then(([airportsData, flightsData]) => {
+       airports = airportsData;
+       const flights = flightsData;
 
-        // Group flights by flight details to get unique flights (remove passenger duplicates)
-        const flightMap = {};
-        flights.forEach(flight => {
-          const flightId = flight['Date'] + '-' + flight['Aircraft Tail #'] + '-' + flight['DEP: Code'] + '-' + flight['ARR: Code'] + '-' + flight['Flight_No.'];
-          flightMap[flightId] = flight;
-        });
-        const uniqueFlights = Object.values(flightMap);
+       // Group unique flights
+       const flightMap = {};
+       flights.forEach(flight => {
+         const flightId = flight['Date'] + '-' + flight['Aircraft Tail #'] + '-' + flight['DEP: Code'] + '-' + flight['ARR: Code'] + '-' + flight['Flight_No.'];
+         flightMap[flightId] = flight;
+       });
+       uniqueFlights = Object.values(flightMap);
 
-        const locations = new Set();
-        const routes = {};
-        uniqueFlights.forEach(flight => {
-          const dep = flight['DEP: Code'];
-          const arr = flight['ARR: Code'];
-          if (dep) locations.add(dep);
-          if (arr) locations.add(arr);
-          if (dep && arr && dep !== arr && airportCoords[dep] && airportCoords[arr]) {
-            const key = dep < arr ? dep + '-' + arr : arr + '-' + dep;
-            if (!routes[key]) routes[key] = { dep: dep, arr: arr, count: 0, flights: [] };
-            routes[key].count++;
-            routes[key].flights.push(flight);
-          }
-        });
+       function buildMap(filteredFlights) {
+         // Clear previous
+         markers.forEach(m => map.removeLayer(m));
+         arcs.forEach(a => map.removeLayer(a));
+         markers = [];
+         arcs = [];
 
-        locations.forEach(code => {
-          if (airportCoords[code]) {
-            const coords = airportCoords[code];
-            L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(coords.name);
-          }
-        });
+         const airportCoords = {};
+         for (const code in airports) {
+           const airport = airports[code];
+           airportCoords[code] = { lat: airport.lat, lon: airport.lon, name: airport.name };  // ICAO code
+           if (airport.iata) {
+             airportCoords[airport.iata] = { lat: airport.lat, lon: airport.lon, name: airport.name };
+           }
+         }
 
-        Object.values(routes).forEach(route => {
-          const depCoords = airportCoords[route.dep];
-          const arrCoords = airportCoords[route.arr];
-          const start = turf.point([depCoords.lon, depCoords.lat]);
-          const end = turf.point([arrCoords.lon, arrCoords.lat]);
-          const greatCircle = turf.greatCircle(start, end, { npoints: 100 });
-          const latlngs = greatCircle.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-          const popupText = route.flights.map(f => `${f['Date']} - ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
-          L.polyline(latlngs, { color: 'blue', weight: Math.min(route.count, 10) }).bindPopup(popupText).addTo(map);
-        });
-     });
+         const locations = new Set();
+         const routes = {};
+         filteredFlights.forEach(flight => {
+           const dep = flight['DEP: Code'];
+           const arr = flight['ARR: Code'];
+           if (dep) locations.add(dep);
+           if (arr) locations.add(arr);
+           if (dep && arr && dep !== arr && airportCoords[dep] && airportCoords[arr]) {
+             const key = dep < arr ? dep + '-' + arr : arr + '-' + dep;
+             if (!routes[key]) routes[key] = { dep: dep, arr: arr, count: 0, flights: [] };
+             routes[key].count++;
+             routes[key].flights.push(flight);
+           }
+         });
+
+         locations.forEach(code => {
+           if (airportCoords[code]) {
+             const coords = airportCoords[code];
+             const marker = L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(coords.name);
+             markers.push(marker);
+           }
+         });
+
+         Object.values(routes).forEach(route => {
+           const depCoords = airportCoords[route.dep];
+           const arrCoords = airportCoords[route.arr];
+           const start = turf.point([depCoords.lon, depCoords.lat]);
+           const end = turf.point([arrCoords.lon, arrCoords.lat]);
+           const greatCircle = turf.greatCircle(start, end, { npoints: 100 });
+           const latlngs = greatCircle.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+           const popupText = route.flights.map(f => `${f['Date']} - ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
+           const arc = L.polyline(latlngs, { color: 'blue', weight: Math.min(route.count, 10) }).bindPopup(popupText).addTo(map);
+           arcs.push(arc);
+         });
+       }
+
+       // Set date range
+       const dates = uniqueFlights.map(f => new Date(f['Date']));
+       const minDate = new Date(Math.min(...dates));
+       const maxDate = new Date(Math.max(...dates));
+       document.getElementById('startDate').value = minDate.toISOString().split('T')[0];
+       document.getElementById('endDate').value = maxDate.toISOString().split('T')[0];
+
+       // Initial build
+       buildMap(uniqueFlights);
+
+       // Filter on form submit
+       document.getElementById('filterForm').addEventListener('submit', (e) => {
+         e.preventDefault();
+         const start = new Date(document.getElementById('startDate').value);
+         const end = new Date(document.getElementById('endDate').value);
+         const filtered = uniqueFlights.filter(f => {
+           const d = new Date(f['Date']);
+           return d >= start && d <= end;
+         });
+         buildMap(filtered);
+       });
+      });
    </script>
 </body>
 </html>
