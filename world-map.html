@@ -26,9 +26,9 @@
        const airportCoords = {};
        for (const code in airports) {
          const airport = airports[code];
-         airportCoords[code] = [airport.lat, airport.lon];  // ICAO code
+         airportCoords[code] = { lat: airport.lat, lon: airport.lon, name: airport.name };  // ICAO code
          if (airport.iata) {
-           airportCoords[airport.iata] = [airport.lat, airport.lon];
+           airportCoords[airport.iata] = { lat: airport.lat, lon: airport.lon, name: airport.name };
          }
        }
 
@@ -40,7 +40,8 @@
 
        locations.forEach(code => {
          if (airportCoords[code]) {
-           L.marker(airportCoords[code]).addTo(map).bindPopup(code);
+           const coords = airportCoords[code];
+           L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(coords.name);
          }
        });
      });
