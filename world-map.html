@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>World Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <style>
     body { margin: 0; padding: 0; }
     #map { height: 100vh; width: 100vw; }
@@ -14,20 +13,37 @@
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([20, 0], 2); // Centered on world, zoom level 2
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    // Add markers
-    L.marker([40.7128, -74.0060]).addTo(map); // NYC
-    L.marker([37.7749, -122.4194]).addTo(map); // SF
-    L.marker([41.8781, -87.6298]).addTo(map); // Chicago
-    // Add proper curved flight path from SF to NYC
-    const sf = turf.point([-122.4194, 37.7749]);
-    const nyc = turf.point([-74.0060, 40.7128]);
-    const greatCircle = turf.greatCircle(sf, nyc);
-    L.geoJSON(greatCircle, {color: 'red', weight: 3}).addTo(map);
-  </script>
+   <script>
+     const map = L.map('map').setView([20, 0], 2); // Centered on world, zoom level 2
+     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+     }).addTo(map);
+
+     Promise.all([
+       fetch('airports.json').then(response => response.json()),
+       fetch('epstein_flights.json').then(response => response.json())
+     ]).then(([airports, flights]) => {
+       const airportCoords = {};
+       for (const code in airports) {
+         const airport = airports[code];
+         airportCoords[code] = [airport.lat, airport.lon];  // ICAO code
+         if (airport.iata) {
+           airportCoords[airport.iata] = [airport.lat, airport.lon];
+         }
+       }
+
+       const locations = new Set();
+       flights.forEach(flight => {
+         if (flight['DEP: Code']) locations.add(flight['DEP: Code']);
+         if (flight['ARR: Code']) locations.add(flight['ARR: Code']);
+       });
+
+       locations.forEach(code => {
+         if (airportCoords[code]) {
+           L.marker(airportCoords[code]).addTo(map).bindPopup(code);
+         }
+       });
+     });
+   </script>
 </body>
 </html>
