@@ -150,7 +150,27 @@ Promise.all([
   endDate.value = maxDate.toISOString().split('T')[0];
 
   buildMap(uniqueFlights);
+  selectRouteFromHash();
 });
+
+function selectRouteFromHash(){
+  const hash = window.location.hash.slice(1); // remove #
+  if(!hash) return;
+  const [dep, arr] = hash.split('-');
+  if(!dep || !arr) return;
+
+  // find the matching arc
+  const match = arcs.find(a=>{
+    const f = a.routeFlights[0];
+    const d = f['DEP: Code'];
+    const r = f['ARR: Code'];
+    return (d===dep && r===arr) || (d===arr && r===dep);
+  });
+
+  if(match){
+    match.fire('click'); // programmatically trigger click
+  }
+}
 
 function buildMap(flights, selectedAirport){
   markers.forEach(m=>map.removeLayer(m));
@@ -214,14 +234,17 @@ function buildMap(flights, selectedAirport){
         selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
         selectedArc = null;
       }
+      window.location.hash = ''; // <--- clear fragment
     });
 
-    // Then in the line click handler:
-    line.on('click', function(){
+    line.on('click', function(e){
+      if(e.originalEvent) e.originalEvent.stopPropagation();
+
       if(selectedArc===this){
         this.setStyle({color:'blue', weight:this.originalWeight});
         selectedArc = null;
         bsOffcanvas.hide();
+        window.location.hash = ''; // <--- clear fragment
         return;
       }
 
@@ -232,29 +255,26 @@ function buildMap(flights, selectedAirport){
       this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
       selectedArc = this;
 
-      // populate offcanvas
+      // populate offcanvas...
       const filtersText = `Filters: Airport=${airportSelect.value||'All'}, Person=${personSelect.value||'All'}`;
       document.getElementById('routeFilters').textContent = filtersText;
 
-      // populate offcanvas
-      // populate offcanvas
       const flightsList = document.getElementById('routeFlights');
       flightsList.innerHTML = '';
-
       this.routeFlights.forEach(f => {
         const li = document.createElement('li');
         li.className = 'list-group-item';
-
-        const passengers = f.passengers
-          ? f.passengers.map(p => p['First Last']).join(', ')
-          : '';
-
+        const passengers = f.passengers ? f.passengers.map(p => p['First Last']).join(', ') : '';
         li.textContent = `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']}) | Passengers: ${passengers}`;
         flightsList.appendChild(li);
       });
 
-      // show offcanvas
       bsOffcanvas.show();
+
+      // set hash
+      const dep = this.routeFlights[0]['DEP: Code'];
+      const arr = this.routeFlights[0]['ARR: Code'];
+      window.location.hash = `${dep}-${arr}`;
     });
 
     arcs.push(line);
