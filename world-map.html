@@ -112,22 +112,24 @@ Promise.all([
     if(f['DEP: Code']) airportSet.add(f['DEP: Code']);
     if(f['ARR: Code']) airportSet.add(f['ARR: Code']);
   });
-  [...airportSet].sort().forEach(code=>{
-    const opt=document.createElement('option');
-    opt.value=code;
-    opt.text=code+(airportCoords[code]? ' – '+airportCoords[code].name : '');
-    airportSelect.appendChild(opt);
-  });
+  [...airportSet].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+    .forEach(code => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.text = code + (airportCoords[code] ? ' – ' + airportCoords[code].name : '');
+      airportSelect.appendChild(opt);
+    });
 
   // Populate person select
   const people = new Set();
   uniqueFlights.forEach(i=>i.passengers.forEach(p=>{if(p['Last, First']) people.add(p['Last, First']);}));
-  [...people].sort().forEach(name=>{
-    const opt = document.createElement('option');
-    opt.value=name;
-    opt.text=name;
-    personSelect.appendChild(opt);
-  });
+  [...people].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+    .forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.text = name;
+      personSelect.appendChild(opt);
+    });
 
   const dates = uniqueFlights.map(i=>new Date(i.flight['Date']));
   minDate = new Date(Math.min(...dates));
