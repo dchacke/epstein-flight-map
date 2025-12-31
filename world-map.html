@@ -10,6 +10,7 @@
 
 <!-- Bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <style>
 html, body { height: 100%; margin: 0; }
@@ -64,6 +65,17 @@ html, body { height: 100%; margin: 0; }
 </div>
 
 <div id="map"></div>
+
+<div class="offcanvas offcanvas-start" tabindex="-1" id="routeOffcanvas">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">Route Details</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="routeFilters" class="mb-2"></div>
+    <ul id="routeFlights" class="list-group list-group-flush"></ul>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -154,7 +166,10 @@ function buildMap(flights, selectedAirport){
     locations.add(dep); locations.add(arr);
     const key = dep<arr? dep+'-'+arr : arr+'-'+dep;
     if(!routes[key]) routes[key]={dep,arr,flights:[]};
-    routes[key].flights.push(f);
+    routes[key].flights.push({
+      ...f,
+      passengers: item.passengers
+    });
   });
 
   // markers
@@ -191,30 +206,55 @@ function buildMap(flights, selectedAirport){
     line.routeFlights = route.flights;
     line.originalWeight = weight;
 
-    line.bindPopup(''); // bind once
+    const offcanvasEl = document.getElementById('routeOffcanvas');
+    const bsOffcanvas = new bootstrap.Offcanvas(offcanvasEl); // create once
 
+    offcanvasEl.addEventListener('hidden.bs.offcanvas', () => {
+      if(selectedArc){
+        selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
+        selectedArc = null;
+      }
+    });
+
+    // Then in the line click handler:
     line.on('click', function(){
       if(selectedArc===this){
         this.setStyle({color:'blue', weight:this.originalWeight});
-        this.closePopup();
-        selectedArc=null;
+        selectedArc = null;
+        bsOffcanvas.hide();
         return;
       }
+
       if(selectedArc){
         selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
-        selectedArc.closePopup();
       }
-      this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
-      const popupText = this.routeFlights.map(f=>`${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
-      this.setPopupContent(popupText).openPopup();
-      selectedArc = this;
-    });
 
-    line.on('popupclose', function(){
-      if(selectedArc===this){
-        this.setStyle({color:'blue', weight:this.originalWeight});
-        selectedArc=null;
-      }
+      this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
+      selectedArc = this;
+
+      // populate offcanvas
+      const filtersText = `Filters: Airport=${airportSelect.value||'All'}, Person=${personSelect.value||'All'}`;
+      document.getElementById('routeFilters').textContent = filtersText;
+
+      // populate offcanvas
+      // populate offcanvas
+      const flightsList = document.getElementById('routeFlights');
+      flightsList.innerHTML = '';
+
+      this.routeFlights.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+
+        const passengers = f.passengers
+          ? f.passengers.map(p => p['First Last']).join(', ')
+          : '';
+
+        li.textContent = `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']}) | Passengers: ${passengers}`;
+        flightsList.appendChild(li);
+      });
+
+      // show offcanvas
+      bsOffcanvas.show();
     });
 
     arcs.push(line);
@@ -228,11 +268,16 @@ function buildMap(flights, selectedAirport){
   document.getElementById('resultCount').textContent = flights.length+' flight'+(flights.length===1?'':'s');
 }
 
-map.on('click', function(){
+map.on('click', function(e){
+  // if click was on a marker or polyline, ignore
+  if(e.originalEvent.target.closest('.leaflet-interactive')) return;
+
   if(selectedArc){
     selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
-    selectedArc.closePopup();
-    selectedArc=null;
+    selectedArc = null;
+    const offcanvasEl = document.getElementById('routeOffcanvas');
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+    if(bsOffcanvas) bsOffcanvas.hide();
   }
 });
 
