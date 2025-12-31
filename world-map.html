@@ -1,69 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>World Map</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Map</title>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- Bootstrap 5 -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
 
-  <style>
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100%; width: 100%; }
-    #controls {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1000;
-      width: 320px;
-    }
-    .red-marker { filter: hue-rotate(180deg) saturate(2); }
-    .form-label { margin-bottom: 0.125rem; }
-  </style>
+<style>
+html, body { height: 100%; margin: 0; }
+#map { height: 100%; width: 100%; }
+#controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  width: 320px;
+}
+.red-marker { filter: hue-rotate(180deg) saturate(2); }
+.form-label { margin-bottom: 0.125rem; }
+</style>
 </head>
 <body>
 
 <div id="controls" class="card shadow-sm">
   <div class="card-body">
     <h6 class="card-title mb-3">Filter Flights</h6>
-
     <form id="filterForm">
       <div class="mb-2">
         <label for="startDate" class="form-label">Start date</label>
         <input type="date" id="startDate" class="form-control">
       </div>
-
       <div class="mb-2">
         <label for="endDate" class="form-label">End date</label>
         <input type="date" id="endDate" class="form-control">
       </div>
-
       <div class="mb-2">
         <label for="airportSelect" class="form-label">Airport</label>
         <select id="airportSelect" class="form-select">
           <option value="">All airports</option>
         </select>
       </div>
-
       <div class="mb-3">
         <label for="personSelect" class="form-label">Person</label>
         <select id="personSelect" class="form-select">
           <option value="">All people</option>
         </select>
       </div>
-
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm">Apply</button>
         <button type="button" id="clearBtn" class="btn btn-outline-secondary btn-sm">Clear</button>
       </div>
-
       <div id="resultCount" class="mt-2 text-muted small"></div>
     </form>
   </div>
@@ -75,47 +66,37 @@
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
-const map = L.map('map').setView([0, 0], 1);
+const map = L.map('map').setView([0,0],1);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 let markers = [];
 let arcs = [];
-let airports;
-let uniqueFlights;
-let minDate, maxDate;
-let airportCoords = {};
+let airports, uniqueFlights, minDate, maxDate, airportCoords = {};
 let selectedArc = null;
 
 Promise.all([
-  fetch('airports.json').then(r => r.text()).then(t => JSON.parse(t.replace(/^\s*\/\/.*$/gm, ''))),
-  fetch('epstein_flights.json').then(r => r.json())
+  fetch('airports.json').then(r=>r.text()).then(t=>JSON.parse(t.replace(/^\s*\/\/.*$/gm,''))),
+  fetch('epstein_flights.json').then(r=>r.json())
 ]).then(([airportsData, flights]) => {
   airports = airportsData;
 
-  // Build airport lookup
-  for (const code in airports) {
+  for(const code in airports){
     const a = airports[code];
-    airportCoords[code] = { lat: a.lat, lon: a.lon, name: a.name };
-    if (a.iata) airportCoords[a.iata] = { lat: a.lat, lon: a.lon, name: a.name };
+    airportCoords[code] = {lat:a.lat, lon:a.lon, name:a.name};
+    if(a.iata) airportCoords[a.iata] = {lat:a.lat, lon:a.lon, name:a.name};
   }
 
-  // Group flights by unique flight
+  // Group flights
   const flightMap = {};
-  flights.forEach(row => {
-    const id = [
-      row['Date'],
-      row['Aircraft Tail #'],
-      row['DEP: Code'],
-      row['ARR: Code'],
-      row['Flight_No.']
-    ].join('|');
-    if (!flightMap[id]) flightMap[id] = [];
-    flightMap[id].push(row);
+  flights.forEach(r=>{
+    const id = [r['Date'],r['Aircraft Tail #'],r['DEP: Code'],r['ARR: Code'],r['Flight_No.']].join('|');
+    if(!flightMap[id]) flightMap[id]=[];
+    flightMap[id].push(r);
   });
 
-  uniqueFlights = Object.keys(flightMap).map(id => ({
+  uniqueFlights = Object.keys(flightMap).map(id=>({
     id,
     flight: flightMap[id][0],
     passengers: flightMap[id]
@@ -123,182 +104,151 @@ Promise.all([
 
   // Populate airport select
   const airportSet = new Set();
-  uniqueFlights.forEach(item => {
-    const f = item.flight;
-    if (f['DEP: Code']) airportSet.add(f['DEP: Code']);
-    if (f['ARR: Code']) airportSet.add(f['ARR: Code']);
+  uniqueFlights.forEach(i=>{
+    const f = i.flight;
+    if(f['DEP: Code']) airportSet.add(f['DEP: Code']);
+    if(f['ARR: Code']) airportSet.add(f['ARR: Code']);
   });
-  [...airportSet].sort().forEach(code => {
-    const opt = document.createElement('option');
-    opt.value = code;
-    opt.text = code + (airportCoords[code] ? ' – ' + airportCoords[code].name : '');
+  [...airportSet].sort().forEach(code=>{
+    const opt=document.createElement('option');
+    opt.value=code;
+    opt.text=code+(airportCoords[code]? ' – '+airportCoords[code].name : '');
     airportSelect.appendChild(opt);
   });
 
   // Populate person select
   const people = new Set();
-  uniqueFlights.forEach(item => {
-    item.passengers.forEach(p => {
-      if (p['Last, First']) people.add(p['Last, First']);
-    });
-  });
-  [...people].sort().forEach(name => {
+  uniqueFlights.forEach(i=>i.passengers.forEach(p=>{if(p['Last, First']) people.add(p['Last, First']);}));
+  [...people].sort().forEach(name=>{
     const opt = document.createElement('option');
-    opt.value = name;
-    opt.text = name;
+    opt.value=name;
+    opt.text=name;
     personSelect.appendChild(opt);
   });
 
-  // Date range
-  const dates = uniqueFlights.map(i => new Date(i.flight['Date']));
+  const dates = uniqueFlights.map(i=>new Date(i.flight['Date']));
   minDate = new Date(Math.min(...dates));
   maxDate = new Date(Math.max(...dates));
-
   startDate.value = minDate.toISOString().split('T')[0];
   endDate.value = maxDate.toISOString().split('T')[0];
 
   buildMap(uniqueFlights);
 });
 
-function buildMap(flights, selectedAirport) {
-  markers.forEach(m => map.removeLayer(m));
-  arcs.forEach(a => map.removeLayer(a));
-  markers = [];
-  arcs = [];
-  selectedArc = null;
+function buildMap(flights, selectedAirport){
+  markers.forEach(m=>map.removeLayer(m));
+  arcs.forEach(a=>map.removeLayer(a));
+  markers = []; arcs = []; selectedArc = null;
 
-  const routes = {};
-  const locations = new Set();
+  const routes = {}; const locations = new Set();
 
-  // Group flights by route
-  flights.forEach(item => {
+  flights.forEach(item=>{
     const f = item.flight;
-    const dep = f['DEP: Code'];
-    const arr = f['ARR: Code'];
-    if (!dep || !arr || dep === arr) return;
-
-    locations.add(dep);
-    locations.add(arr);
-
-    const key = dep < arr ? dep + '-' + arr : arr + '-' + dep;
-    if (!routes[key]) routes[key] = { dep, arr, flights: [] };
+    const dep = f['DEP: Code'], arr = f['ARR: Code'];
+    if(!dep||!arr||dep===arr) return;
+    locations.add(dep); locations.add(arr);
+    const key = dep<arr? dep+'-'+arr : arr+'-'+dep;
+    if(!routes[key]) routes[key]={dep,arr,flights:[]};
     routes[key].flights.push(f);
   });
 
-  // Markers
-  locations.forEach(code => {
-    let c = airportCoords[code] || airportCoords['K' + code];
-    if (!c) return;
-
-    const m = L.marker([c.lat, c.lon]).addTo(map).bindPopup(c.name);
-    if (code === selectedAirport) m._icon.classList.add('red-marker');
+  // markers
+  locations.forEach(code=>{
+    let c = airportCoords[code] || airportCoords['K'+code];
+    if(!c) return;
+    const m = L.marker([c.lat,c.lon]).addTo(map).bindPopup(c.name);
+    if(code===selectedAirport) m._icon.classList.add('red-marker');
     markers.push(m);
   });
 
-  // Arcs
-  Object.values(routes).forEach(route => {
-    let a = airportCoords[route.dep] || airportCoords['K' + route.dep];
-    let b = airportCoords[route.arr] || airportCoords['K' + route.arr];
-    if (!a || !b) return;
+  // arcs
+  Object.values(routes).forEach(route=>{
+    let a = airportCoords[route.dep]||airportCoords['K'+route.dep];
+    let b = airportCoords[route.arr]||airportCoords['K'+route.arr];
+    if(!a||!b) return;
 
-    const gc = turf.greatCircle(
-      turf.point([a.lon, a.lat]),
-      turf.point([b.lon, b.lat]),
-      { npoints: 100 }
-    );
-    const latlngs = gc.geometry.coordinates.map(c => [c[1], c[0]]);
-    const weight = Math.min(route.flights.length, 15);
+    const gc = turf.greatCircle(turf.point([a.lon,a.lat]), turf.point([b.lon,b.lat]), {npoints:100});
+    const latlngs = gc.geometry.coordinates.map(c=>[c[1],c[0]]);
+    const weight = Math.min(route.flights.length,15);
 
-    const line = L.polyline(latlngs, { color: 'blue', weight }).addTo(map);
-
-    // Store flights and original weight
+    const line = L.polyline(latlngs,{color:'blue',weight}).addTo(map);
     line.routeFlights = route.flights;
     line.originalWeight = weight;
 
-    // Bind popup once (content updated dynamically)
-    line.bindPopup('');
+    line.bindPopup(''); // bind once
 
-    line.on('click', function(e) {
-      if (selectedArc === this) {
-        // Deselect
-        this.setStyle({ color: 'blue', weight: this.originalWeight });
+    line.on('click', function(){
+      if(selectedArc===this){
+        this.setStyle({color:'blue', weight:this.originalWeight});
         this.closePopup();
-        selectedArc = null;
+        selectedArc=null;
         return;
       }
-
-      // Deselect previous
-      if (selectedArc) {
-        selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
+      if(selectedArc){
+        selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
         selectedArc.closePopup();
       }
-
-      this.setStyle({ color: 'red', weight: Math.max(this.originalWeight, 5) });
-
-      // Update popup content and open
-      const popupText = this.routeFlights.map(f =>
-        `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`
-      ).join('<br>');
+      this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
+      const popupText = this.routeFlights.map(f=>`${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
       this.setPopupContent(popupText).openPopup();
-
       selectedArc = this;
+    });
+
+    line.on('popupclose', function(){
+      if(selectedArc===this){
+        this.setStyle({color:'blue', weight:this.originalWeight});
+        selectedArc=null;
+      }
     });
 
     arcs.push(line);
   });
 
-  if (markers.length) {
-    const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
+  if(markers.length){
+    const bounds = L.latLngBounds(markers.map(m=>m.getLatLng()));
     map.fitBounds(bounds.pad(0.1));
   }
 
-  document.getElementById('resultCount').textContent =
-    flights.length + ' flight' + (flights.length === 1 ? '' : 's');
+  document.getElementById('resultCount').textContent = flights.length+' flight'+(flights.length===1?'':'s');
 }
 
-// Deselect arc on map click
-map.on('click', function() {
-  if (selectedArc) {
-    selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
+map.on('click', function(){
+  if(selectedArc){
+    selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
     selectedArc.closePopup();
-    selectedArc = null;
+    selectedArc=null;
   }
 });
 
-// Filters
-filterForm.addEventListener('submit', e => {
+// filters
+filterForm.addEventListener('submit', e=>{
   e.preventDefault();
-
   const start = new Date(startDate.value);
   const end = new Date(endDate.value);
   const airport = airportSelect.value;
   const person = personSelect.value;
 
-  let filtered = uniqueFlights.filter(i => {
+  let filtered = uniqueFlights.filter(i=>{
     const d = new Date(i.flight['Date']);
-    return d >= start && d <= end;
+    return d>=start && d<=end;
   });
 
-  if (person) {
-    filtered = filtered.filter(i =>
-      i.passengers.some(p => p['Last, First'] === person)
-    );
+  if(person){
+    filtered = filtered.filter(i=>i.passengers.some(p=>p['Last, First']===person));
   }
 
-  if (airport) {
-    filtered = filtered.filter(i =>
-      i.flight['DEP: Code'] === airport || i.flight['ARR: Code'] === airport
-    );
+  if(airport){
+    filtered = filtered.filter(i=>i.flight['DEP: Code']===airport || i.flight['ARR: Code']===airport);
   }
 
   buildMap(filtered, airport);
 });
 
-clearBtn.addEventListener('click', () => {
-  startDate.value = minDate.toISOString().split('T')[0];
-  endDate.value = maxDate.toISOString().split('T')[0];
-  airportSelect.value = '';
-  personSelect.value = '';
+clearBtn.addEventListener('click', ()=>{
+  startDate.value=minDate.toISOString().split('T')[0];
+  endDate.value=maxDate.toISOString().split('T')[0];
+  airportSelect.value='';
+  personSelect.value='';
   buildMap(uniqueFlights);
 });
 </script>
