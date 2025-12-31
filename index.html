@@ -273,6 +273,7 @@ function buildMap(flights, selectedAirport){
       }
 
       this.setStyle({color:'red', weight: Math.max(this.originalStyle.weight,5)});
+      this.bringToFront();
       selectedArc = this;
 
       // zoom to route
