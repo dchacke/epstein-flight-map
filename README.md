@@ -22,3 +22,11 @@ The map shows airports and flights, with filtering options for dates, airports, 
 ## Contributions
 
 Contributions to improve visualization, usability, or documentation are welcome. Run a web server, then open `index.html` in a modern browser.
+
+## Credit
+
+I vibe coded this project using Grok and ChatGPT.
+
+Data is sourced from https://ia801606.us.archive.org/30/items/epstein-flight-logs-unredacted_202304/EPSTEIN%20FLIGHT%20LOGS%20UNREDACTED.pdf
+
+I then normalized the data. It looks like it’s the result of optical character recognition, so it contains some mistakes. I corrected wrong names and airport codes by hand. Diff epstein_flights.json and epstein_flights_normalized.json to see the changes I made.
