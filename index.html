@@ -174,6 +174,20 @@ function selectRouteFromHash(){
   }
 }
 
+function routeColor(route) {
+  // stable string: adjust if your route object differs
+  const key = `${route.dep}-${route.arr}`;
+
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 50%)`;
+}
+
 function buildMap(flights, selectedAirport){
   markers.forEach(m=>map.removeLayer(m));
   arcs.forEach(a=>map.removeLayer(a));
@@ -224,16 +238,20 @@ function buildMap(flights, selectedAirport){
     const latlngs = gc.geometry.coordinates.map(c=>[c[1],c[0]]);
     const weight = Math.min(Math.max(route.flights.length, 2), 15);
 
-    const line = L.polyline(latlngs,{color:'blue',weight}).addTo(map);
+    let color = routeColor(route);
+    let style = { color, weight, opacity: 0.8 };
+
+    const line = L.polyline(latlngs, style).addTo(map);
+
     line.routeFlights = route.flights;
-    line.originalWeight = weight;
+    line.originalStyle = style;
 
     const offcanvasEl = document.getElementById('routeOffcanvas');
     const bsOffcanvas = new bootstrap.Offcanvas(offcanvasEl); // create once
 
     offcanvasEl.addEventListener('hidden.bs.offcanvas', () => {
       if(selectedArc){
-        selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
+        selectedArc.setStyle(selectedArc.originalStyle);
         selectedArc = null;
       }
       window.location.hash = ''; // <--- clear fragment
@@ -243,7 +261,7 @@ function buildMap(flights, selectedAirport){
       if(e.originalEvent) e.originalEvent.stopPropagation();
 
       if(selectedArc===this){
-        this.setStyle({color:'blue', weight:this.originalWeight});
+        this.setStyle(selectedArc.originalStyle);
         selectedArc = null;
         bsOffcanvas.hide();
         window.location.hash = ''; // <--- clear fragment
@@ -251,10 +269,10 @@ function buildMap(flights, selectedAirport){
       }
 
       if(selectedArc){
-        selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
+        selectedArc.setStyle(this.originalStyle);
       }
 
-      this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
+      this.setStyle({color:'red', weight: Math.max(this.originalStyle.weight,5)});
       selectedArc = this;
 
       // zoom to route
@@ -309,7 +327,7 @@ map.on('click', function(e){
   if(e.originalEvent.target.closest('.leaflet-interactive')) return;
 
   if(selectedArc){
-    selectedArc.setStyle({color:'blue', weight:selectedArc.originalWeight});
+    selectedArc.setStyle(selectedArc.originalStyle);
     selectedArc = null;
     const offcanvasEl = document.getElementById('routeOffcanvas');
     const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
