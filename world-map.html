@@ -156,7 +156,7 @@ function buildMap(flights, selectedAirport){
   locations.forEach(code=>{
     let c = airportCoords[code] || airportCoords['K'+code];
     if(!c) return;
-    const m = L.marker([c.lat,c.lon]).addTo(map).bindPopup(c.name);
+    const m = L.marker([c.lat,c.lon]).addTo(map).bindPopup(`${c.name} (${code})`);
     if(code===selectedAirport) m._icon.classList.add('red-marker');
     markers.push(m);
   });
