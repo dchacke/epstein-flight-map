@@ -15,16 +15,8 @@
   />
 
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-    }
-
-    #map {
-      height: 100%;
-      width: 100%;
-    }
-
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; width: 100%; }
     #controls {
       position: absolute;
       top: 10px;
@@ -32,14 +24,8 @@
       z-index: 1000;
       width: 320px;
     }
-
-    .red-marker {
-      filter: hue-rotate(180deg) saturate(2);
-    }
-
-    .form-label {
-      margin-bottom: 0.125rem;
-    }
+    .red-marker { filter: hue-rotate(180deg) saturate(2); }
+    .form-label { margin-bottom: 0.125rem; }
   </style>
 </head>
 <body>
@@ -108,12 +94,14 @@ Promise.all([
 ]).then(([airportsData, flights]) => {
   airports = airportsData;
 
+  // Build airport lookup
   for (const code in airports) {
     const a = airports[code];
     airportCoords[code] = { lat: a.lat, lon: a.lon, name: a.name };
     if (a.iata) airportCoords[a.iata] = { lat: a.lat, lon: a.lon, name: a.name };
   }
 
+  // Group flights by unique flight
   const flightMap = {};
   flights.forEach(row => {
     const id = [
@@ -123,7 +111,6 @@ Promise.all([
       row['ARR: Code'],
       row['Flight_No.']
     ].join('|');
-
     if (!flightMap[id]) flightMap[id] = [];
     flightMap[id].push(row);
   });
@@ -134,13 +121,13 @@ Promise.all([
     passengers: flightMap[id]
   }));
 
+  // Populate airport select
   const airportSet = new Set();
   uniqueFlights.forEach(item => {
     const f = item.flight;
     if (f['DEP: Code']) airportSet.add(f['DEP: Code']);
     if (f['ARR: Code']) airportSet.add(f['ARR: Code']);
   });
-
   [...airportSet].sort().forEach(code => {
     const opt = document.createElement('option');
     opt.value = code;
@@ -148,13 +135,13 @@ Promise.all([
     airportSelect.appendChild(opt);
   });
 
+  // Populate person select
   const people = new Set();
   uniqueFlights.forEach(item => {
     item.passengers.forEach(p => {
       if (p['Last, First']) people.add(p['Last, First']);
     });
   });
-
   [...people].sort().forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
@@ -162,6 +149,7 @@ Promise.all([
     personSelect.appendChild(opt);
   });
 
+  // Date range
   const dates = uniqueFlights.map(i => new Date(i.flight['Date']));
   minDate = new Date(Math.min(...dates));
   maxDate = new Date(Math.max(...dates));
@@ -182,6 +170,7 @@ function buildMap(flights, selectedAirport) {
   const routes = {};
   const locations = new Set();
 
+  // Group flights by route
   flights.forEach(item => {
     const f = item.flight;
     const dep = f['DEP: Code'];
@@ -217,22 +206,23 @@ function buildMap(flights, selectedAirport) {
       turf.point([b.lon, b.lat]),
       { npoints: 100 }
     );
-
     const latlngs = gc.geometry.coordinates.map(c => [c[1], c[0]]);
-    const popupText = route.flights.map(f =>
-      `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`
-    ).join('<br>');
+    const weight = Math.min(route.flights.length, 15);
 
-    const line = L.polyline(latlngs, { color: 'blue', weight: Math.min(route.flights.length, 10) })
-      .bindPopup(popupText)
-      .addTo(map);
+    const line = L.polyline(latlngs, { color: 'blue', weight }).addTo(map);
 
-    // Click to highlight
+    // Store flights and original weight
+    line.routeFlights = route.flights;
+    line.originalWeight = weight;
+
+    // Bind popup once (content updated dynamically)
+    line.bindPopup('');
+
     line.on('click', function(e) {
       if (selectedArc === this) {
-        // Toggle off
+        // Deselect
         this.setStyle({ color: 'blue', weight: this.originalWeight });
-        this.closePopup(); // close the popup
+        this.closePopup();
         selectedArc = null;
         return;
       }
@@ -240,13 +230,17 @@ function buildMap(flights, selectedAirport) {
       // Deselect previous
       if (selectedArc) {
         selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
-        selectedArc.closePopup(); // close previous popup
+        selectedArc.closePopup();
       }
 
-      // Select this arc
-      this.originalWeight = this.options.weight;
-      this.setStyle({ color: 'red', weight: Math.max(this.options.weight, 5) });
-      this.openPopup(); // open popup for selected
+      this.setStyle({ color: 'red', weight: Math.max(this.originalWeight, 5) });
+
+      // Update popup content and open
+      const popupText = this.routeFlights.map(f =>
+        `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`
+      ).join('<br>');
+      this.setPopupContent(popupText).openPopup();
+
       selectedArc = this;
     });
 
@@ -266,6 +260,7 @@ function buildMap(flights, selectedAirport) {
 map.on('click', function() {
   if (selectedArc) {
     selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
+    selectedArc.closePopup();
     selectedArc = null;
   }
 });
