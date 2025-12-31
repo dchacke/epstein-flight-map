@@ -16,6 +16,7 @@
      <form id="filterForm">
        <label>Start Date: <input type="date" id="startDate"></label>
        <label>End Date: <input type="date" id="endDate"></label>
+       <label>Airport: <select id="airportSelect"><option value="">All Airports</option></select></label>
        <button type="submit">Filter Flights</button>
      </form>
    </div>
@@ -34,11 +35,24 @@
      let uniqueFlights;
 
      Promise.all([
-       fetch('airports.json').then(response => response.json()),
+       fetch('airports.json').then(response => response.text()).then(text => {
+         const jsonText = text.replace(/^\s*\/\/.*$/gm, '');
+         return JSON.parse(jsonText);
+       }),
        fetch('epstein_flights.json').then(response => response.json())
      ]).then(([airportsData, flightsData]) => {
        airports = airportsData;
        const flights = flightsData;
+
+       // Build airportCoords
+       const airportCoords = {};
+       for (const code in airports) {
+         const airport = airports[code];
+         airportCoords[code] = { lat: airport.lat, lon: airport.lon, name: airport.name };  // ICAO code
+         if (airport.iata) {
+           airportCoords[airport.iata] = { lat: airport.lat, lon: airport.lon, name: airport.name };
+         }
+       }
 
        // Group unique flights
        const flightMap = {};
@@ -48,7 +62,21 @@
        });
        uniqueFlights = Object.values(flightMap);
 
-       function buildMap(filteredFlights) {
+       // Populate airport select
+       const allAirports = new Set();
+       uniqueFlights.forEach(f => {
+         if (f['DEP: Code']) allAirports.add(f['DEP: Code']);
+         if (f['ARR: Code']) allAirports.add(f['ARR: Code']);
+       });
+       Array.from(allAirports).sort().forEach(code => {
+         const name = airportCoords[code] ? airportCoords[code].name : code;
+         const option = document.createElement('option');
+         option.value = code;
+         option.text = `${code} - ${name}`;
+         document.getElementById('airportSelect').appendChild(option);
+       });
+
+        function buildMap(filteredFlights) {
          // Clear previous
          markers.forEach(m => map.removeLayer(m));
          arcs.forEach(a => map.removeLayer(a));
@@ -87,18 +115,24 @@
            }
          });
 
-         Object.values(routes).forEach(route => {
-           const depCoords = airportCoords[route.dep];
-           const arrCoords = airportCoords[route.arr];
-           const start = turf.point([depCoords.lon, depCoords.lat]);
-           const end = turf.point([arrCoords.lon, arrCoords.lat]);
-           const greatCircle = turf.greatCircle(start, end, { npoints: 100 });
-           const latlngs = greatCircle.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-           const popupText = route.flights.map(f => `${f['Date']} - ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
-           const arc = L.polyline(latlngs, { color: 'blue', weight: Math.min(route.count, 10) }).bindPopup(popupText).addTo(map);
-           arcs.push(arc);
-         });
-       }
+          Object.values(routes).forEach(route => {
+            const depCoords = airportCoords[route.dep];
+            const arrCoords = airportCoords[route.arr];
+            const start = turf.point([depCoords.lon, depCoords.lat]);
+            const end = turf.point([arrCoords.lon, arrCoords.lat]);
+            const greatCircle = turf.greatCircle(start, end, { npoints: 100 });
+            const latlngs = greatCircle.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            const popupText = route.flights.map(f => `${f['Date']} - ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`).join('<br>');
+            const arc = L.polyline(latlngs, { color: 'blue', weight: Math.min(route.count, 10) }).bindPopup(popupText).addTo(map);
+            arcs.push(arc);
+          });
+
+          // Fit map to show all markers
+          if (markers.length > 0) {
+            const group = L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.1));
+          }
+        }
 
        // Set date range
        const dates = uniqueFlights.map(f => new Date(f['Date']));
@@ -115,10 +149,14 @@
          e.preventDefault();
          const start = new Date(document.getElementById('startDate').value);
          const end = new Date(document.getElementById('endDate').value);
-         const filtered = uniqueFlights.filter(f => {
+         const airport = document.getElementById('airportSelect').value;
+         let filtered = uniqueFlights.filter(f => {
            const d = new Date(f['Date']);
            return d >= start && d <= end;
          });
+         if (airport) {
+           filtered = filtered.filter(f => f['DEP: Code'] === airport || f['ARR: Code'] === airport);
+         }
          buildMap(filtered);
        });
       });
