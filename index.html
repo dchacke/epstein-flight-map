@@ -222,7 +222,7 @@ function buildMap(flights, selectedAirport){
 
     const gc = turf.greatCircle(turf.point([a.lon,a.lat]), turf.point([b.lon,b.lat]), {npoints:100});
     const latlngs = gc.geometry.coordinates.map(c=>[c[1],c[0]]);
-    const weight = Math.min(route.flights.length,15);
+    const weight = Math.min(Math.max(route.flights.length, 2), 15);
 
     const line = L.polyline(latlngs,{color:'blue',weight}).addTo(map);
     line.routeFlights = route.flights;
