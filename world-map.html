@@ -74,12 +74,8 @@
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary btn-sm">
-          Apply
-        </button>
-        <button type="button" id="clearBtn" class="btn btn-outline-secondary btn-sm">
-          Clear
-        </button>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        <button type="button" id="clearBtn" class="btn btn-outline-secondary btn-sm">Clear</button>
       </div>
 
       <div id="resultCount" class="mt-2 text-muted small"></div>
@@ -89,7 +85,6 @@
 
 <div id="map"></div>
 
-<!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
@@ -105,6 +100,7 @@ let airports;
 let uniqueFlights;
 let minDate, maxDate;
 let airportCoords = {};
+let selectedArc = null;
 
 Promise.all([
   fetch('airports.json').then(r => r.text()).then(t => JSON.parse(t.replace(/^\s*\/\/.*$/gm, ''))),
@@ -181,6 +177,7 @@ function buildMap(flights, selectedAirport) {
   arcs.forEach(a => map.removeLayer(a));
   markers = [];
   arcs = [];
+  selectedArc = null;
 
   const routes = {};
   const locations = new Set();
@@ -199,6 +196,7 @@ function buildMap(flights, selectedAirport) {
     routes[key].flights.push(f);
   });
 
+  // Markers
   locations.forEach(code => {
     let c = airportCoords[code] || airportCoords['K' + code];
     if (!c) return;
@@ -208,6 +206,7 @@ function buildMap(flights, selectedAirport) {
     markers.push(m);
   });
 
+  // Arcs
   Object.values(routes).forEach(route => {
     let a = airportCoords[route.dep] || airportCoords['K' + route.dep];
     let b = airportCoords[route.arr] || airportCoords['K' + route.arr];
@@ -220,12 +219,38 @@ function buildMap(flights, selectedAirport) {
     );
 
     const latlngs = gc.geometry.coordinates.map(c => [c[1], c[0]]);
-    arcs.push(
-      L.polyline(latlngs, {
-        color: 'blue',
-        weight: Math.min(route.flights.length, 10)
-      }).addTo(map)
-    );
+    const popupText = route.flights.map(f =>
+      `${f['Date']} – ${f['Aircraft Tail #']} (${f['DEP: Code']} → ${f['ARR: Code']})`
+    ).join('<br>');
+
+    const line = L.polyline(latlngs, { color: 'blue', weight: Math.min(route.flights.length, 10) })
+      .bindPopup(popupText)
+      .addTo(map);
+
+    // Click to highlight
+    line.on('click', function(e) {
+      if (selectedArc === this) {
+        // Toggle off
+        this.setStyle({ color: 'blue', weight: this.originalWeight });
+        this.closePopup(); // close the popup
+        selectedArc = null;
+        return;
+      }
+
+      // Deselect previous
+      if (selectedArc) {
+        selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
+        selectedArc.closePopup(); // close previous popup
+      }
+
+      // Select this arc
+      this.originalWeight = this.options.weight;
+      this.setStyle({ color: 'red', weight: Math.max(this.options.weight, 5) });
+      this.openPopup(); // open popup for selected
+      selectedArc = this;
+    });
+
+    arcs.push(line);
   });
 
   if (markers.length) {
@@ -237,6 +262,15 @@ function buildMap(flights, selectedAirport) {
     flights.length + ' flight' + (flights.length === 1 ? '' : 's');
 }
 
+// Deselect arc on map click
+map.on('click', function() {
+  if (selectedArc) {
+    selectedArc.setStyle({ color: 'blue', weight: selectedArc.originalWeight });
+    selectedArc = null;
+  }
+});
+
+// Filters
 filterForm.addEventListener('submit', e => {
   e.preventDefault();
 
