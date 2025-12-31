@@ -257,6 +257,20 @@ function buildMap(flights, selectedAirport){
       this.setStyle({color:'red', weight: Math.max(this.originalWeight,5)});
       selectedArc = this;
 
+      // zoom to route
+      const offcanvasEl = document.getElementById('routeOffcanvas');
+      const offcanvasWidth =
+        offcanvasEl.classList.contains('show')
+          ? offcanvasEl.getBoundingClientRect().width
+          : offcanvasEl.offsetWidth;
+
+      map.fitBounds(this.getBounds(), {
+        paddingTopLeft: [offcanvasWidth + 20, 40],
+        paddingBottomRight: [40, 40],
+        maxZoom: 6,
+        animate: true
+      });
+
       // populate offcanvas...
       const filtersText = `Filters: Airport=${airportSelect.value||'All'}, Person=${personSelect.value||'All'}`;
       document.getElementById('routeFilters').textContent = filtersText;
