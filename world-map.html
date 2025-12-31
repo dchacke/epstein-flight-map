@@ -9,6 +9,7 @@
      html, body { height: 100%; margin: 0; padding: 0; }
      #map { height: 100%; width: 100%; }
      #controls { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; }
+     .red-marker { filter: hue-rotate(180deg) saturate(2); }
    </style>
  </head>
  <body>
@@ -78,7 +79,7 @@
          document.getElementById('airportSelect').appendChild(option);
        });
 
-        function buildMap(filteredFlights) {
+        function buildMap(filteredFlights, selectedAirport) {
          // Clear previous
          markers.forEach(m => map.removeLayer(m));
          arcs.forEach(a => map.removeLayer(a));
@@ -112,7 +113,10 @@
          locations.forEach(code => {
            if (airportCoords[code]) {
              const coords = airportCoords[code];
-             const marker = L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(coords.name);
+              const marker = L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(coords.name);
+              if (code === selectedAirport) {
+                marker._icon.classList.add('red-marker');
+              }
              markers.push(marker);
            }
          });
@@ -159,7 +163,7 @@
          if (airport) {
            filtered = filtered.filter(f => f['DEP: Code'] === airport || f['ARR: Code'] === airport);
          }
-         buildMap(filtered);
+          buildMap(filtered, airport);
        });
 
        // Clear filters
@@ -167,7 +171,7 @@
          document.getElementById('startDate').value = minDate.toISOString().split('T')[0];
          document.getElementById('endDate').value = maxDate.toISOString().split('T')[0];
          document.getElementById('airportSelect').value = '';
-         buildMap(uniqueFlights);
+         buildMap(uniqueFlights, '');
        });
       });
    </script>
