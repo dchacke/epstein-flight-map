@@ -81,6 +81,8 @@
           Clear
         </button>
       </div>
+
+      <div id="resultCount" class="mt-2 text-muted small"></div>
     </form>
   </div>
 </div>
@@ -230,6 +232,9 @@ function buildMap(flights, selectedAirport) {
     const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
     map.fitBounds(bounds.pad(0.1));
   }
+
+  document.getElementById('resultCount').textContent =
+    flights.length + ' flight' + (flights.length === 1 ? '' : 's');
 }
 
 filterForm.addEventListener('submit', e => {
