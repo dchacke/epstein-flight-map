@@ -78,7 +78,7 @@ let selectedArc = null;
 
 Promise.all([
   fetch('airports.json').then(r=>r.text()).then(t=>JSON.parse(t.replace(/^\s*\/\/.*$/gm,''))),
-  fetch('epstein_flights.json').then(r=>r.json())
+  fetch('epstein_flights_normalized.json').then(r=>r.json())
 ]).then(([airportsData, flights]) => {
   airports = airportsData;
 
@@ -163,9 +163,20 @@ function buildMap(flights, selectedAirport){
 
   // arcs
   Object.values(routes).forEach(route=>{
-    let a = airportCoords[route.dep]||airportCoords['K'+route.dep];
-    let b = airportCoords[route.arr]||airportCoords['K'+route.arr];
-    if(!a||!b) return;
+    const depCode = (route.dep || '').trim().toUpperCase();
+    const arrCode = (route.arr || '').trim().toUpperCase();
+    const a = airportCoords[depCode] || airportCoords['K'+depCode];
+    const b = airportCoords[arrCode] || airportCoords['K'+arrCode];
+
+    if (!a || !b) {
+      console.warn('Couldn’t find airport', {
+        dep: route.dep,
+        arr: route.arr,
+        depCoords: !!a,
+        arrCoords: !!b
+      });
+      return;
+    }
 
     const gc = turf.greatCircle(turf.point([a.lon,a.lat]), turf.point([b.lon,b.lat]), {npoints:100});
     const latlngs = gc.geometry.coordinates.map(c=>[c[1],c[0]]);
