@@ -92,7 +92,9 @@ let airports, uniqueFlights, minDate, maxDate, airportCoords = {};
 let selectedArc = null;
 
 Promise.all([
+  // Original source: https://raw.githubusercontent.com/mwgg/Airports/master/airports.json
   fetch('airports.json').then(r=>r.text()).then(t=>JSON.parse(t.replace(/^\s*\/\/.*$/gm,''))),
+  // Parsed and normalized from https://ia801606.us.archive.org/30/items/epstein-flight-logs-unredacted_202304/EPSTEIN%20FLIGHT%20LOGS%20UNREDACTED.pdf
   fetch('epstein_flights_normalized.json').then(r=>r.json())
 ]).then(([airportsData, flights]) => {
   airports = airportsData;
