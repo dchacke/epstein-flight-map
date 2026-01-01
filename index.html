@@ -24,43 +24,65 @@ html, body { height: 100%; margin: 0; }
 }
 .red-marker { filter: hue-rotate(180deg) saturate(2); }
 .form-label { margin-bottom: 0.125rem; }
+
+@media (min-width: 992px) {
+  #filtersCollapse {
+    display: block !important;
+    height: auto !important;
+    visibility: visible;
+  }
+}
+
 </style>
 </head>
 <body>
 
 <div id="controls" class="card shadow-sm">
   <div class="card-body">
-    <h6 class="card-title mb-3">Filter Flights</h6>
-    <form id="filterForm">
-      <div class="mb-2">
-        <label for="startDate" class="form-label">Start date</label>
-        <input type="date" id="startDate" class="form-control">
-      </div>
-      <div class="mb-2">
-        <label for="endDate" class="form-label">End date</label>
-        <input type="date" id="endDate" class="form-control">
-      </div>
-      <div class="mb-2">
-        <label for="airportSelect" class="form-label">Airport</label>
-        <select id="airportSelect" class="form-select">
-          <option value="">All airports</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="personSelect" class="form-label">Person</label>
-        <select id="personSelect" class="form-select">
-          <option value="">All people</option>
-        </select>
-      </div>
-      <div class="d-flex justify-content-between align-items-center mt-2">
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-          <button type="button" id="clearBtn" class="btn btn-outline-secondary btn-sm">Clear</button>
+    <h6 class="card-title mb-0 d-flex justify-content-between align-items-center">
+      Filter Flights
+      <button
+        class="btn btn-sm btn-link d-lg-none"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#filtersCollapse"
+        aria-expanded="false">
+        Toggle
+      </button>
+    </h6>
+
+    <div id="filtersCollapse" class="collapse">
+      <form id="filterForm">
+        <div class="mb-2">
+          <label for="startDate" class="form-label">Start date</label>
+          <input type="date" id="startDate" class="form-control">
         </div>
-        <div id="resultCount" class="text-muted small"></div>
-      </div>
-      <div id="resultCount" class="mt-2 text-muted small"></div>
-    </form>
+        <div class="mb-2">
+          <label for="endDate" class="form-label">End date</label>
+          <input type="date" id="endDate" class="form-control">
+        </div>
+        <div class="mb-2">
+          <label for="airportSelect" class="form-label">Airport</label>
+          <select id="airportSelect" class="form-select">
+            <option value="">All airports</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="personSelect" class="form-label">Person</label>
+          <select id="personSelect" class="form-select">
+            <option value="">All people</option>
+          </select>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+            <button type="button" id="clearBtn" class="btn btn-outline-secondary btn-sm">Clear</button>
+          </div>
+          <div id="resultCount" class="text-muted small"></div>
+        </div>
+        <div id="resultCount" class="mt-2 text-muted small"></div>
+      </form>
+    </div>
   </div>
 </div>
 
