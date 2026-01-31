@@ -14,7 +14,8 @@
 
 <style>
 html, body { height: 100%; margin: 0; }
-#map { height: 100%; width: 100%; }
+#map { height: calc(100% - 41px); width: 100%; }
+#footer { background-color: #f8f9fa; border-top: 1px solid #dee2e6; position: absolute; bottom: 0; width: 100%; z-index: 1000; height: 41px }
 #controls {
   position: absolute;
   top: 10px;
@@ -87,6 +88,12 @@ html, body { height: 100%; margin: 0; }
 </div>
 
 <div id="map"></div>
+
+<div id="footer" class="text-center py-2">
+  <p class="text-muted mb-0">
+    Built by <a href="https://dennishackethal.com" target="_blank" rel="noopener noreferrer">Dennis Hackethal</a>
+  </p>
+</div>
 
 <div class="offcanvas offcanvas-start" tabindex="-1" id="routeOffcanvas">
   <div class="offcanvas-header">
